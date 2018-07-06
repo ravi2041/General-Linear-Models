@@ -1,0 +1,258 @@
+setwd("C:\\Users\\Ravi Singh\\Desktop")
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(knitr, tidyverse, vcd, data.table, lubridate, pROC, DescTools, caTools,pryr,ggplot2)
+library(readr)
+library(SDMTools)
+library(dplyr)
+riverbank<-read.table("RiverBank.txt",header = TRUE)
+attach(riverbank)
+summary(riverbank)
+tapply(vegewidth,landcover,mean)
+str(riverbank)
+head(riverbank)
+par(mfrow=c(1,2))
+hist(vegewidth,col='blue',xlab = 'vegewidth',ylab = 'count')
+kable(as.data.frame(lapply(riverbank,function(x)length(unique(x)))))
+kable(as.data.frame(lapply(riverbank[failure==1,],function(x)length(unique(x)))))
+kable(as.data.frame(lapply(riverbank[failure==0,],function(x)length(unique(x)))))
+riverbank$sediment=factor(riverbank$sediment,labels=c('coarse','_not_coarse'))
+riverbank$meander=factor(riverbank$meander,labels=c('inside','outside','chute','straight'))
+
+#riverbank$landcover[riverbank$landcover==1 | riverbank$landcover==2]<-'not_forest'
+#riverbank$landcover[riverbank$landcover==4 | riverbank$landcover==3]<-'forest'
+#riverbank$landcover=factor(riverbank$landcover,labels=c('forest','not_forest'))
+
+#riverbank<-riverbank%>% mutate(dredging_cat=cut(dredging,breaks = c(-Inf,0,116497,Inf),
+#                                                labels = c('low','middle','high')))
+riverbank<-riverbank%>% mutate(dredging_cat=cut(dredging,breaks = c(-Inf,81116,643739,799564),
+                                                labels = c('low','middle','high')))
+
+riverbank$landcover=factor(riverbank$landcover,
+                           labels=c('open_water','grassy','agricultural','forest'))
+
+table(landcover,failure)
+riverbank$vegewidth[riverbank$vegewidth==0]<-1.0001
+riverbank$vegewidth<-log(riverbank$vegewidth)
+riverbank[!complete.cases(riverbank),]
+hist(riverbank$vegewidth,col='yellow',main='Histogram of log of vegewidth',
+     xlab = 'vegewidth',ylab = 'count')
+riverbank$vege_fact<-cut(riverbank$vegewidth,breaks = c(0,5,10),labels = c('small','large'))
+boxplot(vege_fact,failure)
+attach(riverbank)
+boxplot(vegewidth)
+#is.na.data.frame(riverbank)
+
+table(riverbank$dredging_cat)
+summary(riverbank)
+n_occur <-data.frame(table(riverbank$sinuosity))
+n_occur[n_occur$Freq>1,]
+riverbank[riverbank$sinuosity==1.5503,]
+anyDuplicated(riverbank,incomparables = F)
+
+kable(table(riverbank$meander,riverbank$failure))
+kable(table(riverbank$landcover,riverbank$failure))
+kable(table(riverbank$sediment,riverbank$failure))
+par(mfrow=c(1,1))
+boxplot(vegewidth~failure,xlab="failure",ylab="vegewidth",col=c('blue','green'))
+boxplot(vegewidth~meander,xlab="meander",ylab="vegewidth")
+boxplot(vegewidth~landcover,xlab="landcover",ylab="vegewidth",
+        col=c('seashell3','peachpuff','plum','salmon'),
+        main="Boxplot of vegewidth vs landocver")
+
+boxplot(vegewidth~riverbank$dredging_cat,xlab="dredging",ylab="vegewidth")
+
+boxplot(sinuosity~meander,xlab="meander",ylab="sinuosity",
+        col=c('lightcyan3','indianred1','lightgoldenrod1','lemonchiffon1'),
+        main='boxplot of meander and sinuosity')
+boxplot(sinuosity~landcover,xlab="landcover",ylab="sinuosity")
+boxplot(sinuosity~failure,xlab="failure",ylab="sinuosity")
+boxplot(sinuosity~riverbank$dredging_cat,xlab="dredging",ylab="sinuosity")
+
+boxplot(channelwidth~meander,xlab="meander",ylab="channelwidth")
+boxplot(channelwidth~failure,xlab="failure",ylab="channelwidth")
+boxplot(channelwidth~landcover,xlab="landcover",ylab="channelwidth")
+boxplot(channelwidth~riverbank$dredging_cat,xlab="dredging",ylab="channelwidth")
+
+par(mfrow=c(1,1))
+plot(sinuosity,failure)
+plot(failure,vegewidth)
+plot(vegewidth,sinuosity)
+plot(channelwidth,failure)
+plot(dredging,failure)
+
+hist(vegewidth)
+hist(sinuosity)
+hist(channelwidth)
+hist(log(sinuosity))
+hist(log(vegewidth))
+kable(as.data.frame(lapply(riverbank[sediment==0,],function(x)length(unique(x)))))
+summary(riverbank)
+par(mfrow=c(2,2))
+barplot(table(failure,dredging_cat),xlab = 'dredging',ylab = 'failure count',
+        col = c("olivedrab2","moccasin"))
+barplot(table(failure,landcover),xlab = 'landcover',ylab = 'failure count',
+        col = c("honeydew","lightblue3"))
+barplot(table(failure,meander),xlab = 'meander',ylab = 'failure count',
+        col = c("aquamarine1","chartreuse3"))
+barplot(table(failure,sediment),xlab = 'sediment',ylab = 'failure count',
+        col = c("bisque","coral"))
+
+barplot(table(riverbank$dredging_cat,meander),xlab = 'meander',ylab = 'count')
+barplot(table(riverbank$dredging_cat,landcover),xlab = 'landcover',ylab = 'count')
+barplot(table(riverbank$dredging_cat,sediment),xlab = 'sediment',ylab = 'count')
+barplot(table(riverbank$dredging_cat,failure),xlab = 'failure',ylab = 'count')
+
+barplot(table(landcover,sediment))
+barplot(table(landcover,meander))
+barplot(table(landcover,failure))
+barplot(table(landcover,riverbank$dredging_cat))
+table(failure,sediment)
+table(failure,landcover)
+table(dredging_cat,meander)
+table(meander,landcover)
+table(channelwidth,landcover)
+riverbank
+par(mfrow=c(1,1))
+
+ggplot(subset(riverbank,failure %in% c(0,1)),
+       aes(x=meander,
+           y=sinuosity,
+           color= failure))+
+  geom_jitter()
+ggplot(subset(riverbank,failure %in% c(0,1)),
+       aes(x=landcover,
+           y=sinuosity,
+           color= failure))+
+  geom_jitter()
+
+ggplot(subset(riverbank,failure %in% c(0,1)),
+       aes(x=meander,
+           y=landcover,
+           color= failure))+
+  geom_jitter()
+
+ggplot(subset(riverbank,failure %in% c(0,1)),
+       aes(x=landcover,
+           y=channelwidth,
+           color= failure))+
+  geom_jitter()
+ggplot(subset(riverbank,failure%in% c(0,1)),
+       aes(x=landcover,
+           y=vegewidth,
+           color=failure))+
+  geom_jitter()
+ggplot(subset(riverbank,landcover%in% c('forest','not_forest')),
+       aes(x=meander,
+           y=sinuosity,
+           color=landcover))+
+  geom_jitter(width = 1)
+
+ggplot(subset(riverbank,failure%in% c(0,1)),
+      aes(x=riverbank$dredging_cat,
+          y=sinuosity,
+          color=failure))+
+  geom_jitter()
+
+ggplot(subset(riverbank,failure%in% c(0,1)),
+       aes(x=riverbank$dredging_cat,
+           y=vegewidth,
+           color=failure))+
+  geom_jitter()
+
+ggplot(riverbank, aes(vegewidth, fill = landcover)) +
+  geom_histogram(binwidth=1, position="dodge")
+
+interaction.plot(meander,failure,sinuosity)
+interaction.plot(landcover,failure,vegewidth)
+
+count(riverbank[riverbank$meander=='outside' & riverbank$failure==0,])
+
+#set.seed(123)
+#sample <-sample.int(n=nrow(riverbank),size = floor(.90*nrow(riverbank)),replace=F)
+#str(sample)
+#train<-riverbank[sample,]
+#test<-riverbank[-sample,]
+riverbank[!complete.cases(riverbank),]
+#str(train)
+#str(test)
+
+#contrasts(riverbank$landcover)<-NULL
+#contrasts(riverbank$landcover)<-cbind(c(0,1,0,0),c(0,0,1,0),c(0,0,0,1))
+
+model1 <-glm(failure ~meander+sinuosity+vege_fact+landcover+
+               meander:sinuosity+landcover:vege_fact
+             ,family = binomial(link='logit'),data=riverbank)
+summary(model1)
+step(model1)
+
+model2<- glm(failure~meander+sinuosity,
+             family = binomial,data=riverbank)
+summary(model2)
+anova(model2,model1)
+model3<-update(model2,~.+channelwidth)
+summary(model3)
+model4<-update(model3,~.+landcover)
+summary(model4)
+model5<-update(model4,~.+vegewidth)
+summary(model5)
+model6<-update(model5,~.+dredging_cat)
+summary(model6)
+model7<-update(model6,~.+dredging_cat:sinuosity)
+summary(model7)
+model8<-update(model7,~.+meander:sinuosity)
+summary(model8)
+model9<-update(model8,~.+landcover:vegewidth)
+summary(model9)
+model10<-update(model9,~.-channelwidth)
+summary(model10)
+model11<-update(model10,~.-dredging_cat:sinuosity)
+summary(model11)
+model12<-update(model11,~.-landcover:vegewidth)
+summary(model12)
+model13<-update(model12,~.-landcover)
+summary(model13)
+model14<-update(model13,~.-vegewidth)
+summary(model14)
+
+
+
+y_guess<- predict(model2,newdata = subset(riverbank,select = c(2,3,4,5,6,7,9)),type='response')
+cbind(riverbank,y_guess)
+y_guess<-ifelse(y_guess>0.5,1,0)
+y_guess
+y_actual<-riverbank$failure
+y_actual
+mean(y_guess==y_actual)
+
+print(paste('Accuracy',round(mean(y_guess==y_actual),3)))
+
+library(ROCR) 
+
+p<-predict(model14,newdata = subset(riverbank,select = c(2,3,4,5,6,7,9)),type='response')
+pred<-prediction(p,riverbank$failure)
+str(pred)
+comapring<-data.frame(prediction=pred@predictions[[1]],riverbank$failure,riverbank$dredging_cat,
+                      riverbank$meander,riverbank$sinuosity)
+comapring
+
+prf <- performance(pred, measure = "tpr", x.measure = "fpr")
+par(mfrow=c(1,1))
+plot(prf)
+plot(prf, col=rainbow(25), main="ROC curve", xlab="Specificity", ylab="Sensitivity")
+legend(x=0.5,y=0.1,legend =auc@y.values )
+abline(0, 1)
+
+cutoffs<-data.frame(cut=prf@alpha.values[[1]],fpr=prf@x.values[[1]],
+                    tpr=prf@y.values[[1]])
+cutoffs<-cutoffs[order(cutoffs$tpr,decreasing = T),]
+head(subset(cutoffs,fpr<0.2))
+
+auc <- performance(pred, measure = "auc")
+str(auc)
+auc@y.values
+
+confusion.matrix(riverbank$failure,p,threshold = 0.5)
+
+
+
+exp(8.504922210)
